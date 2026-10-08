@@ -35,10 +35,11 @@ Aplikasi web toko buku modern berbasis **React** dan **Bootstrap 5**. Aplikasi i
 ## 🛠️ Teknologi yang Digunakan
 
 - **[React](https://react.dev/)** (v19) - Library UI
+- **[React Router](https://reactrouter.com/)** - Client-side declarative routing (`BrowserRouter`, `Routes`, `Route`, `Outlet`, `NavLink`, `Link`)
 - **[Vite](https://vitejs.dev/)** - Build tool & dev server yang cepat
 - **[Bootstrap 5](https://getbootstrap.com/)** - Framework CSS untuk komponen dan grid layout responsif
 - **[Font Awesome](https://fontawesome.com/)** (v6.5.2) - Icon library (buku, media sosial, rating, dsb.)
-- **CSS3** - Animasi hover kartu buku, zoom gambar halus, dan avatar tim
+- **CSS3** - Animasi hover kartu buku, custom active pill navigation, zoom gambar halus, dan avatar tim
 
 ---
 
@@ -112,10 +113,24 @@ Buka browser (Google Chrome, Microsoft Edge, Firefox, dll.) lalu akses alamat:
 tugas-reactjs/
 └── studi-kasus/
     ├── index.html          # HTML utama, memuat title & CDN Font Awesome
-    ├── package.json        # Dependensi dan script project
+    ├── package.json        # Dependensi (React, React Router, Bootstrap) dan script
     ├── src/
-    │   ├── App.jsx         # Komponen utama (Nav, Home, Book, Team, Contact, Footer)
-    │   ├── App.css         # Styling kustom (hover card, avatar, cover image)
+    │   ├── components/     # Komponen UI bersama
+    │   │   ├── Navbar.jsx  # Header navigasi modern dengan NavLink & styling aktif
+    │   │   └── Footer.jsx  # Footer tautan navigasi
+    │   ├── layouts/        # Layout berbasis React Router
+    │   │   └── RootLayout.jsx # Layout induk dengan Navbar, <Outlet />, dan Footer
+    │   ├── pages/          # Halaman-halaman rute aplikasi
+    │   │   ├── Home.jsx    # Halaman Beranda (Hero & Best Seller)
+    │   │   ├── Book.jsx    # Halaman Katalog Buku (Search & Filter)
+    │   │   ├── Team.jsx    # Halaman Tim Kami & Pilar Layanan
+    │   │   ├── Contact.jsx # Halaman Kontak & Form Kirim Pesan
+    │   │   └── NotFound.jsx# Halaman 404 Not Found
+    │   ├── data/           # Dataset statis
+    │   │   ├── books.js    # Data 9 buku terlaris
+    │   │   └── team.js     # Data anggota tim
+    │   ├── App.jsx         # Konfigurasi declarative routing (BrowserRouter, Routes, Route)
+    │   ├── App.css         # Styling kustom & efek modern navigasi
     │   ├── main.jsx        # Entry point React & import Bootstrap CSS
     │   └── assets/         # Aset statis gambar/ikon
     └── README.md           # Dokumentasi cara penggunaan
