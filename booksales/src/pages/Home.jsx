@@ -1,5 +1,5 @@
 import { Link } from 'react-router'
-import { books } from '../data/books'
+import books from '../Utils/books'
 
 function Home() {
   return (
@@ -29,7 +29,7 @@ function Home() {
                 to="/book"
                 className="btn btn-outline-secondary btn-lg px-4"
               >
-                <i className="fa-solid fa-book-open me-2"></i>Lihat Koleksi Lain
+                <i className="fa-solid fa-book-open me-2"></i>Lihat Koleksi Lengkap
               </Link>
             </div>
             <div className="d-flex align-items-center gap-3 pt-2 text-muted small">
@@ -77,7 +77,7 @@ function Home() {
         </div>
       </section>
 
-      {/* Product Grid / Album (9 Cards) */}
+      {/* Product Grid / Album Cards */}
       <div className="album py-5 bg-body-tertiary">
         <div className="container">
           <div className="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4">
@@ -89,17 +89,28 @@ function Home() {
                       src={book.image}
                       className="card-img-top book-cover-img"
                       alt={book.title}
+                      onError={(e) => {
+                        e.currentTarget.onerror = null
+                        e.currentTarget.src = 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?q=80&w=700&auto=format&fit=crop'
+                      }}
                     />
-                    <span className="position-absolute top-0 end-0 m-2 badge bg-primary">
-                      {book.category}
+                    {book.category && (
+                      <span className="position-absolute top-0 end-0 m-2 badge bg-primary">
+                        {book.category}
+                      </span>
+                    )}
+                    <span className="position-absolute top-0 start-0 m-2 badge bg-dark bg-opacity-75">
+                      <i className="fa-regular fa-calendar me-1"></i>{book.year}
                     </span>
                   </div>
                   <div className="card-body d-flex flex-column">
                     <div className="d-flex justify-content-between align-items-center mb-1">
-                      <small className="text-muted">{book.author}</small>
+                      <small className="text-muted fw-medium">
+                        <i className="fa-solid fa-user-pen me-1"></i>{book.author}
+                      </small>
                       <small className="text-warning fw-semibold">
                         <i className="fa-solid fa-star me-1"></i>
-                        {book.rating} ({book.reviews})
+                        {book.rating || '4.8'} ({book.reviews || '500+'})
                       </small>
                     </div>
                     <h5 className="card-title fw-bold text-dark mb-2 text-truncate" title={book.title}>
@@ -109,12 +120,12 @@ function Home() {
                       {book.description}
                     </p>
                     <div className="d-flex justify-content-between align-items-center pt-3 border-top mt-2">
-                      <span className="text-primary fw-bold fs-5">{book.price}</span>
+                      <span className="text-primary fw-bold fs-5">{book.price || 'Rp 85.000'}</span>
                       <div className="btn-group">
                         <button
                           type="button"
                           className="btn btn-sm btn-outline-primary"
-                          onClick={() => alert(`Detail buku: ${book.title} karya ${book.author}`)}
+                          onClick={() => alert(`Detail buku: ${book.title}\nPenulis: ${book.author}\nTahun: ${book.year}\nDeskripsi: ${book.description}`)}
                         >
                           Detail
                         </button>
