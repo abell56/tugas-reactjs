@@ -4,6 +4,7 @@ import Home from './pages/Home'
 import Book from './pages/Book'
 import Team from './pages/Team'
 import Contact from './pages/Contact'
+import Admin from './pages/Admin'
 import NotFound from './pages/NotFound'
 
 /**
@@ -31,6 +32,9 @@ function App() {
           <Route path="books" element={<Navigate to="/book" replace />} />
           <Route path="team" element={<Team />} />
           <Route path="contact" element={<Contact />} />
+          <Route path="admin" element={<Admin />} />
+          <Route path="admin/genre" element={<Admin defaultTab="genre" />} />
+          <Route path="admin/author" element={<Admin defaultTab="author" />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

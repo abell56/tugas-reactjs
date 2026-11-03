@@ -92,6 +92,18 @@ function Navbar() {
                 Contact
               </NavLink>
             </li>
+            <li className="nav-item">
+              <NavLink
+                to="/admin"
+                onClick={closeNavbar}
+                className={({ isActive }) =>
+                  `nav-link custom-nav-link ${isActive ? 'active' : ''}`
+                }
+              >
+                <i className="fa-solid fa-shield-halved me-1"></i>
+                Admin
+              </NavLink>
+            </li>
           </ul>
 
           <div className="d-flex align-items-center gap-2 mt-3 mt-md-0">

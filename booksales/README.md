@@ -28,7 +28,16 @@ Aplikasi web toko buku modern berbasis **React** dan **Bootstrap 5**. Aplikasi i
    - Informasi kontak lengkap (alamat toko, email, WhatsApp/telepon CS, dan jam operasional).
    - Formulir pesan interaktif dengan notifikasi sukses saat pesan berhasil dikirim.
 
-6. **Footer**:
+6. **Halaman Admin Panel (Manajemen Data Genre & Author)**:
+   - **Statistik Ringkasan**: Kartu ringkasan total genre aktif, total penulis terdaftar, dan estimasi buku terkait.
+   - **Kelola Genre**:
+     - *Read Data*: Tabel master genre dilengkapi ikon visual, nama, slug, deskripsi, pratinjau badge warna-warni, jumlah koleksi, status aktif, dan fitur pencarian kata kunci secara real-time.
+     - *Create Data*: Formulir penambahan genre baru interaktif dengan pilihan ikon Font Awesome, tema badge (primary, success, dsb.), live preview badge, validasi duplikasi, dan notifikasi sukses.
+   - **Kelola Author**:
+     - *Read Data*: Direktori penulis dengan foto profil/avatar, email, negara asal, badge spesialisasi genre, bio singkat, total karya buku, status terverifikasi, pencarian nama/email/bio, serta filter spesialisasi.
+     - *Create Data*: Formulir penambahan penulis baru dengan relasi dropdown genre dinamis, validasi email, avatar/foto profil, dan notifikasi konfirmasi.
+
+7. **Footer**:
    - Navigasi cepat, informasi hak cipta, dan tautan kebijakan privasi.
 
 ---
@@ -123,13 +132,18 @@ booksales/
 │   ├── pages/          # Halaman-halaman rute aplikasi
 │   │   ├── Home.jsx    # Halaman Beranda (Hero & Best Seller)
 │   │   ├── Book.jsx    # Halaman Katalog Buku (Search, Filter, & Tambah Buku)
+│   │   ├── Admin.jsx   # Halaman Admin Panel (Read & Create Genre dan Author)
 │   │   ├── Team.jsx    # Halaman Tim Kami & Pilar Layanan
 │   │   ├── Contact.jsx # Halaman Kontak & Form Kirim Pesan
 │   │   └── NotFound.jsx# Halaman 404 Not Found
-│   ├── Utils/          # Folder utilitas data buku
-│   │   └── books.js    # Data buku sesuai modul praktikum
+│   ├── Utils/          # Folder utilitas data master
+│   │   ├── books.js    # Data buku sesuai modul praktikum
+│   │   ├── genres.js   # Master dataset genre / kategori
+│   │   └── authors.js  # Master dataset author / penulis
 │   ├── data/           # Dataset statis pendukung
 │   │   ├── books.js    # Re-export data buku
+│   │   ├── genres.js   # Re-export data genre
+│   │   └── authors.js  # Re-export data author
 │   │   └── team.js     # Data anggota tim
 │   ├── App.jsx         # Konfigurasi declarative routing (BrowserRouter, Routes, Route)
 │   │   ├── App.css     # Styling kustom & efek modern navigasi
