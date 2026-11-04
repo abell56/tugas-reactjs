@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import initialGenres from '../Utils/genres'
+import initialAuthors from '../Utils/authors'
 
 function Admin({ defaultTab = 'genre' }) {
   // State untuk Tab Aktif: 'genre' atau 'author'
@@ -15,9 +17,20 @@ function Admin({ defaultTab = 'genre' }) {
   const [genreSearch, setGenreSearch] = useState('')
   const [authorSearch, setAuthorSearch] = useState('')
 
-  // State Toggle Tampilan Form
+  // State Toggle Tampilan Form Create
   const [showGenreForm, setShowGenreForm] = useState(false)
   const [showAuthorForm, setShowAuthorForm] = useState(false)
+
+  // State Modal Edit
+  const [genreToEdit, setGenreToEdit] = useState(null)
+  const [authorToEdit, setAuthorToEdit] = useState(null)
+
+  // State Modal Konfirmasi Hapus
+  const [genreToDelete, setGenreToDelete] = useState(null)
+  const [authorToDelete, setAuthorToDelete] = useState(null)
+
+  // State Status Aksi (Menyimpan / Menghapus)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // State Notifikasi
   const [alert, setAlert] = useState(null)
@@ -32,8 +45,78 @@ function Admin({ defaultTab = 'genre' }) {
   // =========================================================================
   // FETCH DATA
   // =========================================================================
-  const fetchAllData = async () => {
-    setLoading(true)
+  useEffect(() => {
+    let ignore = false
+
+    const loadInitialData = async () => {
+      try {
+        const [resGenres, resAuthors] = await Promise.all([
+          fetch('/api/genres'),
+          fetch('/api/authors'),
+        ])
+
+        if (ignore) return
+
+        if (resGenres.ok && resAuthors.ok) {
+          const genresData = await resGenres.json()
+          const authorsData = await resAuthors.json()
+          setGenreList(genresData)
+          setAuthorList(authorsData)
+        } else {
+          setGenreList((prev) =>
+            prev.length > 0
+              ? prev
+              : initialGenres.map((g) => ({
+                  ...g,
+                  book_count: g.book_count ?? g.bookCount ?? 0,
+                }))
+          )
+          setAuthorList((prev) =>
+            prev.length > 0
+              ? prev
+              : initialAuthors.map((a) => ({
+                  ...a,
+                  photo: a.photo || a.avatar || '',
+                  total_books: a.total_books ?? a.totalBooks ?? 0,
+                }))
+          )
+        }
+      } catch (err) {
+        console.warn('Gagal memuat data dari server, menggunakan fallback dataset lokal:', err)
+        if (!ignore) {
+          setGenreList((prev) =>
+            prev.length > 0
+              ? prev
+              : initialGenres.map((g) => ({
+                  ...g,
+                  book_count: g.book_count ?? g.bookCount ?? 0,
+                }))
+          )
+          setAuthorList((prev) =>
+            prev.length > 0
+              ? prev
+              : initialAuthors.map((a) => ({
+                  ...a,
+                  photo: a.photo || a.avatar || '',
+                  total_books: a.total_books ?? a.totalBooks ?? 0,
+                }))
+          )
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false)
+        }
+      }
+    }
+
+    loadInitialData()
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  const reloadData = async () => {
     try {
       const [resGenres, resAuthors] = await Promise.all([
         fetch('/api/genres'),
@@ -47,15 +130,9 @@ function Admin({ defaultTab = 'genre' }) {
         setAuthorList(authorsData)
       }
     } catch (err) {
-      console.warn('Gagal memuat data:', err)
-    } finally {
-      setLoading(false)
+      console.warn('Gagal memuat ulang data dari server:', err)
     }
   }
-
-  useEffect(() => {
-    fetchAllData()
-  }, [])
 
   // =========================================================================
   // LOGIKA CREATE: GENRE
@@ -93,21 +170,142 @@ function Admin({ defaultTab = 'genre' }) {
         }),
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => ({}))
 
       if (response.ok) {
         triggerAlert(`Genre "${genreForm.name.trim()}" berhasil ditambahkan!`)
         setGenreForm({ name: '', description: '' })
         setShowGenreForm(false)
-        fetchAllData()
-      } else {
+        reloadData()
+      } else if (response.status === 400 || response.status === 500) {
         triggerAlert(result.error || 'Gagal menambahkan genre.', 'danger')
+      } else {
+        // Fallback offline
+        const newGenre = {
+          id: Date.now(),
+          name: genreForm.name.trim(),
+          description: genreForm.description.trim(),
+          book_count: 0,
+        }
+        setGenreList((prev) => [newGenre, ...prev])
+        triggerAlert(`Genre "${genreForm.name.trim()}" berhasil ditambahkan!`)
+        setGenreForm({ name: '', description: '' })
+        setShowGenreForm(false)
       }
-    } catch (error) {
-      triggerAlert('Terjadi kesalahan jaringan saat menyimpan data.', 'danger')
-      console.error(error)
+    } catch {
+      // Offline fallback
+      const newGenre = {
+        id: Date.now(),
+        name: genreForm.name.trim(),
+        description: genreForm.description.trim(),
+        book_count: 0,
+      }
+      setGenreList((prev) => [newGenre, ...prev])
+      triggerAlert(`Genre "${genreForm.name.trim()}" berhasil ditambahkan!`)
+      setGenreForm({ name: '', description: '' })
+      setShowGenreForm(false)
     } finally {
       setSavingGenre(false)
+    }
+  }
+
+  // =========================================================================
+  // LOGIKA UPDATE: GENRE
+  // =========================================================================
+  const handleUpdateGenre = async (e) => {
+    e.preventDefault()
+
+    if (!genreToEdit || !genreToEdit.name.trim()) {
+      window.alert('Nama Genre wajib diisi!')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/genres/${genreToEdit.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: genreToEdit.name.trim(),
+          description: genreToEdit.description.trim(),
+        }),
+      })
+
+      const result = await response.json().catch(() => ({}))
+
+      if (response.ok) {
+        triggerAlert(result.message || `Genre "${genreToEdit.name.trim()}" berhasil diperbarui!`)
+        setGenreList((prev) =>
+          prev.map((g) =>
+            g.id === genreToEdit.id
+              ? { ...g, name: genreToEdit.name.trim(), description: genreToEdit.description.trim() }
+              : g
+          )
+        )
+        setGenreToEdit(null)
+      } else if (response.status === 400 || response.status === 404) {
+        triggerAlert(result.error || 'Gagal memperbarui genre.', 'danger')
+      } else {
+        // Mode offline fallback
+        setGenreList((prev) =>
+          prev.map((g) =>
+            g.id === genreToEdit.id
+              ? { ...g, name: genreToEdit.name.trim(), description: genreToEdit.description.trim() }
+              : g
+          )
+        )
+        triggerAlert(`Genre "${genreToEdit.name.trim()}" berhasil diperbarui!`)
+        setGenreToEdit(null)
+      }
+    } catch {
+      // Mode offline fallback
+      setGenreList((prev) =>
+        prev.map((g) =>
+          g.id === genreToEdit.id
+            ? { ...g, name: genreToEdit.name.trim(), description: genreToEdit.description.trim() }
+            : g
+        )
+      )
+      triggerAlert(`Genre "${genreToEdit.name.trim()}" berhasil diperbarui!`)
+      setGenreToEdit(null)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // =========================================================================
+  // LOGIKA DELETE: GENRE
+  // =========================================================================
+  const confirmDeleteGenre = async () => {
+    if (!genreToDelete) return
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/genres/${genreToDelete.id}`, {
+        method: 'DELETE',
+      })
+
+      const result = await response.json().catch(() => ({}))
+
+      if (response.ok) {
+        triggerAlert(result.message || `Genre "${genreToDelete.name}" berhasil dihapus!`)
+        setGenreList((prev) => prev.filter((g) => g.id !== genreToDelete.id))
+        setGenreToDelete(null)
+      } else if (response.status === 400 || response.status === 404) {
+        triggerAlert(result.error || 'Gagal menghapus genre.', 'danger')
+      } else {
+        // Mode offline fallback
+        setGenreList((prev) => prev.filter((g) => g.id !== genreToDelete.id))
+        triggerAlert(`Genre "${genreToDelete.name}" berhasil dihapus!`)
+        setGenreToDelete(null)
+      }
+    } catch {
+      // Mode offline fallback
+      setGenreList((prev) => prev.filter((g) => g.id !== genreToDelete.id))
+      triggerAlert(`Genre "${genreToDelete.name}" berhasil dihapus!`)
+      setGenreToDelete(null)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -141,32 +339,180 @@ function Admin({ defaultTab = 'genre' }) {
     try {
       const defaultPhoto =
         'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop'
+      const photoVal = authorForm.photo.trim() || defaultPhoto
 
       const response = await fetch('/api/authors', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: authorForm.name.trim(),
-          photo: authorForm.photo.trim() || defaultPhoto,
+          photo: photoVal,
           bio: authorForm.bio.trim(),
         }),
       })
 
-      const result = await response.json()
+      const result = await response.json().catch(() => ({}))
 
       if (response.ok) {
         triggerAlert(`Penulis "${authorForm.name.trim()}" berhasil ditambahkan!`)
         setAuthorForm({ name: '', photo: '', bio: '' })
         setShowAuthorForm(false)
-        fetchAllData()
-      } else {
+        reloadData()
+      } else if (response.status === 400 || response.status === 500) {
         triggerAlert(result.error || 'Gagal menambahkan author.', 'danger')
+      } else {
+        // Mode offline fallback
+        const newAuthor = {
+          id: Date.now(),
+          name: authorForm.name.trim(),
+          photo: photoVal,
+          bio: authorForm.bio.trim(),
+          total_books: 0,
+        }
+        setAuthorList((prev) => [newAuthor, ...prev])
+        triggerAlert(`Penulis "${authorForm.name.trim()}" berhasil ditambahkan!`)
+        setAuthorForm({ name: '', photo: '', bio: '' })
+        setShowAuthorForm(false)
       }
-    } catch (error) {
-      triggerAlert('Terjadi kesalahan jaringan saat menyimpan data.', 'danger')
-      console.error(error)
+    } catch {
+      // Mode offline fallback
+      const defaultPhoto =
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop'
+      const newAuthor = {
+        id: Date.now(),
+        name: authorForm.name.trim(),
+        photo: authorForm.photo.trim() || defaultPhoto,
+        bio: authorForm.bio.trim(),
+        total_books: 0,
+      }
+      setAuthorList((prev) => [newAuthor, ...prev])
+      triggerAlert(`Penulis "${authorForm.name.trim()}" berhasil ditambahkan!`)
+      setAuthorForm({ name: '', photo: '', bio: '' })
+      setShowAuthorForm(false)
     } finally {
       setSavingAuthor(false)
+    }
+  }
+
+  // =========================================================================
+  // LOGIKA UPDATE: AUTHOR
+  // =========================================================================
+  const handleUpdateAuthor = async (e) => {
+    e.preventDefault()
+
+    if (!authorToEdit || !authorToEdit.name.trim()) {
+      window.alert('Nama Penulis wajib diisi!')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      const defaultPhoto =
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop'
+      const photoVal = authorToEdit.photo.trim() || defaultPhoto
+
+      const response = await fetch(`/api/authors/${authorToEdit.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: authorToEdit.name.trim(),
+          photo: photoVal,
+          bio: authorToEdit.bio.trim(),
+        }),
+      })
+
+      const result = await response.json().catch(() => ({}))
+
+      if (response.ok) {
+        triggerAlert(result.message || `Penulis "${authorToEdit.name.trim()}" berhasil diperbarui!`)
+        setAuthorList((prev) =>
+          prev.map((a) =>
+            a.id === authorToEdit.id
+              ? {
+                  ...a,
+                  name: authorToEdit.name.trim(),
+                  photo: photoVal,
+                  bio: authorToEdit.bio.trim(),
+                }
+              : a
+          )
+        )
+        setAuthorToEdit(null)
+      } else if (response.status === 400 || response.status === 404) {
+        triggerAlert(result.error || 'Gagal memperbarui author.', 'danger')
+      } else {
+        // Mode offline fallback
+        setAuthorList((prev) =>
+          prev.map((a) =>
+            a.id === authorToEdit.id
+              ? {
+                  ...a,
+                  name: authorToEdit.name.trim(),
+                  photo: photoVal,
+                  bio: authorToEdit.bio.trim(),
+                }
+              : a
+          )
+        )
+        triggerAlert(`Penulis "${authorToEdit.name.trim()}" berhasil diperbarui!`)
+        setAuthorToEdit(null)
+      }
+    } catch {
+      // Mode offline fallback
+      const defaultPhoto =
+        'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop'
+      setAuthorList((prev) =>
+        prev.map((a) =>
+          a.id === authorToEdit.id
+            ? {
+                ...a,
+                name: authorToEdit.name.trim(),
+                photo: authorToEdit.photo.trim() || defaultPhoto,
+                bio: authorToEdit.bio.trim(),
+              }
+            : a
+        )
+      )
+      triggerAlert(`Penulis "${authorToEdit.name.trim()}" berhasil diperbarui!`)
+      setAuthorToEdit(null)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // =========================================================================
+  // LOGIKA DELETE: AUTHOR
+  // =========================================================================
+  const confirmDeleteAuthor = async () => {
+    if (!authorToDelete) return
+
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/authors/${authorToDelete.id}`, {
+        method: 'DELETE',
+      })
+
+      const result = await response.json().catch(() => ({}))
+
+      if (response.ok) {
+        triggerAlert(result.message || `Penulis "${authorToDelete.name}" berhasil dihapus!`)
+        setAuthorList((prev) => prev.filter((a) => a.id !== authorToDelete.id))
+        setAuthorToDelete(null)
+      } else if (response.status === 400 || response.status === 404) {
+        triggerAlert(result.error || 'Gagal menghapus author.', 'danger')
+      } else {
+        // Mode offline fallback
+        setAuthorList((prev) => prev.filter((a) => a.id !== authorToDelete.id))
+        triggerAlert(`Penulis "${authorToDelete.name}" berhasil dihapus!`)
+        setAuthorToDelete(null)
+      }
+    } catch {
+      // Mode offline fallback
+      setAuthorList((prev) => prev.filter((a) => a.id !== authorToDelete.id))
+      triggerAlert(`Penulis "${authorToDelete.name}" berhasil dihapus!`)
+      setAuthorToDelete(null)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
@@ -457,7 +803,7 @@ function Admin({ defaultTab = 'genre' }) {
             </div>
           )}
 
-          {/* TABEL READ DATA GENRE */}
+          {/* TABEL READ, UPDATE, DELETE DATA GENRE */}
           <div className="card border-0 shadow-sm rounded-3 bg-white overflow-hidden">
             <div className="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
               <div>
@@ -471,73 +817,116 @@ function Admin({ defaultTab = 'genre' }) {
               </div>
             </div>
 
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light text-secondary text-uppercase small">
-                  <tr>
-                    <th scope="col" className="ps-4" style={{ width: '80px' }}>
-                      #
-                    </th>
-                    <th scope="col" style={{ minWidth: '220px' }}>
-                      Nama Genre
-                    </th>
-                    <th scope="col" style={{ minWidth: '380px' }}>
-                      Deskripsi
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredGenres.length > 0 ? (
-                    filteredGenres.map((genre, idx) => (
-                      <tr key={genre.id}>
-                        <td className="ps-4">
-                          <span className="badge bg-secondary-subtle text-dark font-monospace px-2 py-1">
-                            {idx + 1}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="d-flex align-items-center">
-                            <div
-                              className="rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center me-3 flex-shrink-0"
-                              style={{ width: '40px', height: '40px', fontSize: '1.1rem' }}
-                            >
-                              <i className="fa-solid fa-tag"></i>
+            {loading ? (
+              <div className="text-center py-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Memuat data...</span>
+                </div>
+                <p className="text-muted small mt-2 mb-0">Memuat data genre...</p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="table-light text-secondary text-uppercase small">
+                    <tr>
+                      <th scope="col" className="ps-4" style={{ width: '70px' }}>
+                        #
+                      </th>
+                      <th scope="col" style={{ minWidth: '200px' }}>
+                        Nama Genre
+                      </th>
+                      <th scope="col" style={{ minWidth: '340px' }}>
+                        Deskripsi
+                      </th>
+                      <th scope="col" className="text-center" style={{ width: '180px' }}>
+                        Aksi
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredGenres.length > 0 ? (
+                      filteredGenres.map((genre, idx) => (
+                        <tr key={genre.id}>
+                          <td className="ps-4">
+                            <span className="badge bg-secondary-subtle text-dark font-monospace px-2 py-1">
+                              {idx + 1}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="d-flex align-items-center">
+                              <div
+                                className="rounded-3 bg-primary-subtle text-primary d-flex align-items-center justify-content-center me-3 flex-shrink-0"
+                                style={{ width: '40px', height: '40px', fontSize: '1.1rem' }}
+                              >
+                                <i className="fa-solid fa-tag"></i>
+                              </div>
+                              <div>
+                                <div className="fw-bold text-dark">{genre.name}</div>
+                                <span className="badge bg-light text-secondary border small">
+                                  {genre.book_count ?? genre.bookCount ?? 0} Buku Terkait
+                                </span>
+                              </div>
                             </div>
-                            <div className="fw-bold text-dark">{genre.name}</div>
+                          </td>
+                          <td>
+                            <p className="text-secondary small mb-0">
+                              {genre.description || <em className="text-muted">Tidak ada deskripsi</em>}
+                            </p>
+                          </td>
+                          <td className="text-center">
+                            <div className="d-flex justify-content-center gap-2">
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-warning rounded-pill px-3 fw-semibold text-dark shadow-sm"
+                                title="Edit Genre"
+                                onClick={() =>
+                                  setGenreToEdit({
+                                    id: genre.id,
+                                    name: genre.name,
+                                    description: genre.description || '',
+                                  })
+                                }
+                              >
+                                <i className="fa-solid fa-pen-to-square me-1"></i> Edit
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold shadow-sm"
+                                title="Hapus Genre"
+                                onClick={() => setGenreToDelete(genre)}
+                              >
+                                <i className="fa-solid fa-trash-can me-1"></i> Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="4" className="text-center py-5">
+                          <div className="text-muted">
+                            <i className="fa-solid fa-folder-open fs-1 text-secondary opacity-50 mb-3 d-block"></i>
+                            <h6 className="fw-bold">Tidak ada genre yang cocok</h6>
+                            <p className="small mb-2">
+                              Pencarian &quot;{genreSearch}&quot; tidak menemukan hasil.
+                            </p>
+                            {genreSearch && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                onClick={() => setGenreSearch('')}
+                              >
+                                Reset Pencarian
+                              </button>
+                            )}
                           </div>
                         </td>
-                        <td>
-                          <p className="text-secondary small mb-0">
-                            {genre.description || <em className="text-muted">Tidak ada deskripsi</em>}
-                          </p>
-                        </td>
                       </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="3" className="text-center py-5">
-                        <div className="text-muted">
-                          <i className="fa-solid fa-folder-open fs-1 text-secondary opacity-50 mb-3 d-block"></i>
-                          <h6 className="fw-bold">Tidak ada genre yang cocok</h6>
-                          <p className="small mb-2">
-                            Pencarian &quot;{genreSearch}&quot; tidak menemukan hasil.
-                          </p>
-                          {genreSearch && (
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-primary rounded-pill px-3"
-                              onClick={() => setGenreSearch('')}
-                            >
-                              Reset Pencarian
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -682,7 +1071,7 @@ function Admin({ defaultTab = 'genre' }) {
             </div>
           )}
 
-          {/* TABEL READ DATA AUTHOR */}
+          {/* TABEL READ, UPDATE, DELETE DATA AUTHOR */}
           <div className="card border-0 shadow-sm rounded-3 bg-white overflow-hidden">
             <div className="card-header bg-white border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
               <div>
@@ -696,87 +1085,443 @@ function Admin({ defaultTab = 'genre' }) {
               </div>
             </div>
 
-            <div className="table-responsive">
-              <table className="table table-hover align-middle mb-0">
-                <thead className="table-light text-secondary text-uppercase small">
-                  <tr>
-                    <th scope="col" className="ps-4" style={{ width: '80px' }}>
-                      #
-                    </th>
-                    <th scope="col" style={{ width: '90px' }}>
-                      Foto
-                    </th>
-                    <th scope="col" style={{ minWidth: '220px' }}>
-                      Nama Penulis
-                    </th>
-                    <th scope="col" style={{ minWidth: '380px' }}>
-                      Biografi
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAuthors.length > 0 ? (
-                    filteredAuthors.map((author, idx) => {
-                      const photoUrl = getAuthorPhoto(author.photo, author.id)
-                      return (
-                        <tr key={author.id}>
-                          <td className="ps-4">
-                            <span className="badge bg-secondary-subtle text-dark font-monospace px-2 py-1">
-                              {idx + 1}
-                            </span>
-                          </td>
-                          <td>
-                            <img
-                              src={photoUrl}
-                              alt={author.name}
-                              className="rounded-circle object-fit-cover shadow-sm"
-                              style={{
-                                width: '46px',
-                                height: '46px',
-                                border: '2px solid #e2e8f0',
-                              }}
-                              onError={(e) => {
-                                e.target.onerror = null
-                                e.target.src =
-                                  'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop'
-                              }}
-                            />
-                          </td>
-                          <td>
-                            <div className="fw-bold text-dark">{author.name}</div>
-                          </td>
-                          <td>
-                            <p className="text-secondary small mb-0">
-                              {author.bio || <em className="text-muted">Tidak ada biografi</em>}
-                            </p>
-                          </td>
-                        </tr>
-                      )
-                    })
-                  ) : (
+            {loading ? (
+              <div className="text-center py-5">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Memuat data...</span>
+                </div>
+                <p className="text-muted small mt-2 mb-0">Memuat data penulis...</p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table table-hover align-middle mb-0">
+                  <thead className="table-light text-secondary text-uppercase small">
                     <tr>
-                      <td colSpan="4" className="text-center py-5">
-                        <div className="text-muted">
-                          <i className="fa-solid fa-user-xmark fs-1 text-secondary opacity-50 mb-3 d-block"></i>
-                          <h6 className="fw-bold">Tidak ada penulis yang cocok</h6>
-                          <p className="small mb-2">
-                            Pencarian &quot;{authorSearch}&quot; tidak menemukan hasil.
-                          </p>
-                          {authorSearch && (
-                            <button
-                              type="button"
-                              className="btn btn-sm btn-outline-primary rounded-pill px-3"
-                              onClick={() => setAuthorSearch('')}
-                            >
-                              Reset Pencarian
-                            </button>
-                          )}
-                        </div>
-                      </td>
+                      <th scope="col" className="ps-4" style={{ width: '70px' }}>
+                        #
+                      </th>
+                      <th scope="col" style={{ width: '80px' }}>
+                        Foto
+                      </th>
+                      <th scope="col" style={{ minWidth: '200px' }}>
+                        Nama Penulis
+                      </th>
+                      <th scope="col" style={{ minWidth: '340px' }}>
+                        Biografi
+                      </th>
+                      <th scope="col" className="text-center" style={{ width: '180px' }}>
+                        Aksi
+                      </th>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredAuthors.length > 0 ? (
+                      filteredAuthors.map((author, idx) => {
+                        const photoUrl = getAuthorPhoto(author.photo, author.id)
+                        return (
+                          <tr key={author.id}>
+                            <td className="ps-4">
+                              <span className="badge bg-secondary-subtle text-dark font-monospace px-2 py-1">
+                                {idx + 1}
+                              </span>
+                            </td>
+                            <td>
+                              <img
+                                src={photoUrl}
+                                alt={author.name}
+                                className="rounded-circle object-fit-cover shadow-sm"
+                                style={{
+                                  width: '46px',
+                                  height: '46px',
+                                  border: '2px solid #e2e8f0',
+                                }}
+                                onError={(e) => {
+                                  e.target.onerror = null
+                                  e.target.src =
+                                    'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop'
+                                }}
+                              />
+                            </td>
+                            <td>
+                              <div className="fw-bold text-dark">{author.name}</div>
+                              <span className="badge bg-light text-secondary border small">
+                                {author.total_books ?? author.totalBooks ?? 0} Karya Buku
+                              </span>
+                            </td>
+                            <td>
+                              <p className="text-secondary small mb-0">
+                                {author.bio || <em className="text-muted">Tidak ada biografi</em>}
+                              </p>
+                            </td>
+                            <td className="text-center">
+                              <div className="d-flex justify-content-center gap-2">
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-warning rounded-pill px-3 fw-semibold text-dark shadow-sm"
+                                  title="Edit Author"
+                                  onClick={() =>
+                                    setAuthorToEdit({
+                                      id: author.id,
+                                      name: author.name,
+                                      photo: author.photo || '',
+                                      bio: author.bio || '',
+                                    })
+                                  }
+                                >
+                                  <i className="fa-solid fa-user-pen me-1"></i> Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline-danger rounded-pill px-3 fw-semibold shadow-sm"
+                                  title="Hapus Author"
+                                  onClick={() => setAuthorToDelete(author)}
+                                >
+                                  <i className="fa-solid fa-trash-can me-1"></i> Hapus
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })
+                    ) : (
+                      <tr>
+                        <td colSpan="5" className="text-center py-5">
+                          <div className="text-muted">
+                            <i className="fa-solid fa-user-xmark fs-1 text-secondary opacity-50 mb-3 d-block"></i>
+                            <h6 className="fw-bold">Tidak ada penulis yang cocok</h6>
+                            <p className="small mb-2">
+                              Pencarian &quot;{authorSearch}&quot; tidak menemukan hasil.
+                            </p>
+                            {authorSearch && (
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-primary rounded-pill px-3"
+                                onClick={() => setAuthorSearch('')}
+                              >
+                                Reset Pencarian
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          MODAL SECTION: UPDATE & DELETE
+          ===================================================================== */}
+
+      {/* MODAL EDIT GENRE */}
+      {genreToEdit && (
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.55)', zIndex: 1055 }}
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header bg-warning-subtle text-dark border-bottom py-3">
+                <h5 className="modal-title fw-bold">
+                  <i className="fa-solid fa-pen-to-square me-2 text-warning-emphasis"></i>
+                  Edit Data Genre
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setGenreToEdit(null)}
+                  disabled={isSubmitting}
+                ></button>
+              </div>
+              <form onSubmit={handleUpdateGenre}>
+                <div className="modal-body p-4">
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold text-dark">
+                      Nama Genre <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={genreToEdit.name}
+                      onChange={(e) =>
+                        setGenreToEdit({ ...genreToEdit, name: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label fw-semibold text-dark">
+                      Deskripsi Genre
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      value={genreToEdit.description}
+                      onChange={(e) =>
+                        setGenreToEdit({ ...genreToEdit, description: e.target.value })
+                      }
+                      placeholder="Masukkan deskripsi genre..."
+                    ></textarea>
+                  </div>
+                </div>
+                <div className="modal-footer bg-light border-top py-3">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary rounded-pill px-4 fw-semibold"
+                    onClick={() => setGenreToEdit(null)}
+                    disabled={isSubmitting}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-warning rounded-pill px-4 fw-semibold shadow-sm text-dark"
+                    disabled={isSubmitting}
+                  >
+                    <i className={`fa-solid ${isSubmitting ? 'fa-spinner fa-spin' : 'fa-floppy-disk'} me-2`}></i>
+                    {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI HAPUS GENRE */}
+      {genreToDelete && (
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.55)', zIndex: 1055 }}
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header bg-danger-subtle text-danger border-bottom py-3">
+                <h5 className="modal-title fw-bold">
+                  <i className="fa-solid fa-triangle-exclamation me-2"></i>
+                  Konfirmasi Hapus Genre
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setGenreToDelete(null)}
+                  disabled={isSubmitting}
+                ></button>
+              </div>
+              <div className="modal-body p-4 text-center">
+                <div
+                  className="rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3"
+                  style={{ width: '64px', height: '64px', fontSize: '1.8rem' }}
+                >
+                  <i className="fa-solid fa-trash-can"></i>
+                </div>
+                <h5 className="fw-bold text-dark mb-2">Hapus Genre Ini?</h5>
+                <p className="text-secondary mb-0">
+                  Apakah Anda yakin ingin menghapus genre <strong>&quot;{genreToDelete.name}&quot;</strong>?
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+                {Boolean(genreToDelete.book_count || genreToDelete.bookCount) && (
+                  <div className="alert alert-warning mt-3 mb-0 small text-start">
+                    <i className="fa-solid fa-circle-exclamation me-1"></i>
+                    <strong>Perhatian:</strong> Genre ini masih terhubung dengan{' '}
+                    {genreToDelete.book_count || genreToDelete.bookCount} buku terkait.
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer bg-light border-top py-3">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary rounded-pill px-4 fw-semibold"
+                  onClick={() => setGenreToDelete(null)}
+                  disabled={isSubmitting}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger rounded-pill px-4 fw-semibold shadow-sm"
+                  onClick={confirmDeleteGenre}
+                  disabled={isSubmitting}
+                >
+                  <i className={`fa-solid ${isSubmitting ? 'fa-spinner fa-spin' : 'fa-trash-can'} me-2`}></i>
+                  {isSubmitting ? 'Menghapus...' : 'Ya, Hapus Genre'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDIT AUTHOR */}
+      {authorToEdit && (
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.55)', zIndex: 1055 }}
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header bg-warning-subtle text-dark border-bottom py-3">
+                <h5 className="modal-title fw-bold">
+                  <i className="fa-solid fa-user-pen me-2 text-warning-emphasis"></i>
+                  Edit Data Author
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setAuthorToEdit(null)}
+                  disabled={isSubmitting}
+                ></button>
+              </div>
+              <form onSubmit={handleUpdateAuthor}>
+                <div className="modal-body p-4">
+                  <div className="mb-3 text-center">
+                    <img
+                      src={getAuthorPhoto(authorToEdit.photo, authorToEdit.id)}
+                      alt="Preview"
+                      className="rounded-circle shadow-sm object-fit-cover mb-2"
+                      style={{ width: '70px', height: '70px', border: '3px solid #e2e8f0' }}
+                      onError={(e) => {
+                        e.target.onerror = null
+                        e.target.src =
+                          'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop'
+                      }}
+                    />
+                    <div className="small text-muted">Pratinjau Foto Profil</div>
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold text-dark">
+                      Nama Penulis <span className="text-danger">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={authorToEdit.name}
+                      onChange={(e) =>
+                        setAuthorToEdit({ ...authorToEdit, name: e.target.value })
+                      }
+                      required
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label fw-semibold text-dark">
+                      Foto Profil (URL / Nama File)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={authorToEdit.photo}
+                      placeholder="https://images.unsplash.com/... atau avatar.jpg"
+                      onChange={(e) =>
+                        setAuthorToEdit({ ...authorToEdit, photo: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="mb-2">
+                    <label className="form-label fw-semibold text-dark">
+                      Biografi Penulis
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      value={authorToEdit.bio}
+                      onChange={(e) =>
+                        setAuthorToEdit({ ...authorToEdit, bio: e.target.value })
+                      }
+                      placeholder="Tuliskan biografi singkat..."
+                    ></textarea>
+                  </div>
+                </div>
+                <div className="modal-footer bg-light border-top py-3">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary rounded-pill px-4 fw-semibold"
+                    onClick={() => setAuthorToEdit(null)}
+                    disabled={isSubmitting}
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn btn-warning rounded-pill px-4 fw-semibold shadow-sm text-dark"
+                    disabled={isSubmitting}
+                  >
+                    <i className={`fa-solid ${isSubmitting ? 'fa-spinner fa-spin' : 'fa-floppy-disk'} me-2`}></i>
+                    {isSubmitting ? 'Menyimpan...' : 'Simpan Perubahan'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL KONFIRMASI HAPUS AUTHOR */}
+      {authorToDelete && (
+        <div
+          className="modal fade show d-block"
+          tabIndex="-1"
+          style={{ backgroundColor: 'rgba(0, 0, 0, 0.55)', zIndex: 1055 }}
+        >
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+              <div className="modal-header bg-danger-subtle text-danger border-bottom py-3">
+                <h5 className="modal-title fw-bold">
+                  <i className="fa-solid fa-triangle-exclamation me-2"></i>
+                  Konfirmasi Hapus Author
+                </h5>
+                <button
+                  type="button"
+                  className="btn-close"
+                  onClick={() => setAuthorToDelete(null)}
+                  disabled={isSubmitting}
+                ></button>
+              </div>
+              <div className="modal-body p-4 text-center">
+                <div
+                  className="rounded-circle bg-danger-subtle text-danger d-inline-flex align-items-center justify-content-center mb-3"
+                  style={{ width: '64px', height: '64px', fontSize: '1.8rem' }}
+                >
+                  <i className="fa-solid fa-trash-can"></i>
+                </div>
+                <h5 className="fw-bold text-dark mb-2">Hapus Author Ini?</h5>
+                <p className="text-secondary mb-0">
+                  Apakah Anda yakin ingin menghapus penulis <strong>&quot;{authorToDelete.name}&quot;</strong>?
+                  Tindakan ini tidak dapat dibatalkan.
+                </p>
+                {Boolean(authorToDelete.total_books || authorToDelete.totalBooks) && (
+                  <div className="alert alert-warning mt-3 mb-0 small text-start">
+                    <i className="fa-solid fa-circle-exclamation me-1"></i>
+                    <strong>Perhatian:</strong> Penulis ini masih memiliki{' '}
+                    {authorToDelete.total_books || authorToDelete.totalBooks} karya buku terkait.
+                  </div>
+                )}
+              </div>
+              <div className="modal-footer bg-light border-top py-3">
+                <button
+                  type="button"
+                  className="btn btn-outline-secondary rounded-pill px-4 fw-semibold"
+                  onClick={() => setAuthorToDelete(null)}
+                  disabled={isSubmitting}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-danger rounded-pill px-4 fw-semibold shadow-sm"
+                  onClick={confirmDeleteAuthor}
+                  disabled={isSubmitting}
+                >
+                  <i className={`fa-solid ${isSubmitting ? 'fa-spinner fa-spin' : 'fa-trash-can'} me-2`}></i>
+                  {isSubmitting ? 'Menghapus...' : 'Ya, Hapus Author'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -80,6 +80,84 @@ app.post('/api/genres', async (req, res) => {
   }
 })
 
+// UPDATE: Perbarui data genre berdasarkan ID
+app.put('/api/genres/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, description } = req.body
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Kolom name wajib diisi!' })
+    }
+
+    const [existing] = await pool.query('SELECT * FROM genres WHERE id = ?', [id])
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Data genre tidak ditemukan!' })
+    }
+
+    const descValue = description !== undefined ? description.trim() : existing[0].description
+
+    await pool.query(
+      'UPDATE genres SET name = ?, description = ? WHERE id = ?',
+      [name.trim(), descValue, id]
+    )
+
+    res.json({
+      message: 'Data genre berhasil diperbarui!',
+      data: {
+        id: Number(id),
+        name: name.trim(),
+        description: descValue
+      }
+    })
+  } catch (error) {
+    console.error('Error PUT /api/genres/:id:', error)
+    res.status(500).json({ error: 'Gagal memperbarui genre di database', details: error.message })
+  }
+})
+
+// DELETE: Hapus data genre berdasarkan ID
+app.delete('/api/genres/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const [existing] = await pool.query('SELECT * FROM genres WHERE id = ?', [id])
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Data genre tidak ditemukan!' })
+    }
+
+    // Pengecekan relasi dengan tabel books
+    try {
+      const [[{ bookCount }]] = await pool.query(
+        'SELECT COUNT(*) AS bookCount FROM books WHERE genre_id = ?',
+        [id]
+      )
+      if (bookCount > 0) {
+        return res.status(400).json({
+          error: `Tidak dapat menghapus genre "${existing[0].name}" karena masih terkait dengan ${bookCount} buku.`
+        })
+      }
+    } catch {
+      // Abaikan jika tabel books atau kolom belum tersedia
+    }
+
+    await pool.query('DELETE FROM genres WHERE id = ?', [id])
+
+    res.json({
+      message: `Data genre "${existing[0].name}" berhasil dihapus!`,
+      id: Number(id)
+    })
+  } catch (error) {
+    console.error('Error DELETE /api/genres/:id:', error)
+    if (error.errno === 1451 || error.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(400).json({
+        error: 'Tidak dapat menghapus genre ini karena masih digunakan oleh data buku terkait.'
+      })
+    }
+    res.status(500).json({ error: 'Gagal menghapus genre dari database', details: error.message })
+  }
+})
+
 // ============================================================================
 // 2. ENDPOINT AUTHOR (Read & Create)
 // Tabel: authors (id, name, photo, bio)
@@ -133,6 +211,87 @@ app.post('/api/authors', async (req, res) => {
   } catch (error) {
     console.error('Error POST /api/authors:', error)
     res.status(500).json({ error: 'Gagal menyimpan author ke database', details: error.message })
+  }
+})
+
+// UPDATE: Perbarui data author berdasarkan ID
+app.put('/api/authors/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const { name, photo, bio } = req.body
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Kolom name wajib diisi!' })
+    }
+
+    const [existing] = await pool.query('SELECT * FROM authors WHERE id = ?', [id])
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Data author tidak ditemukan!' })
+    }
+
+    const defaultPhoto = 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=300&auto=format&fit=crop'
+    const photoValue = photo && photo.trim() ? photo.trim() : (existing[0].photo || defaultPhoto)
+    const bioValue = bio !== undefined ? bio.trim() : existing[0].bio
+
+    await pool.query(
+      'UPDATE authors SET name = ?, photo = ?, bio = ? WHERE id = ?',
+      [name.trim(), photoValue, bioValue, id]
+    )
+
+    res.json({
+      message: 'Data author berhasil diperbarui!',
+      data: {
+        id: Number(id),
+        name: name.trim(),
+        photo: photoValue,
+        bio: bioValue
+      }
+    })
+  } catch (error) {
+    console.error('Error PUT /api/authors/:id:', error)
+    res.status(500).json({ error: 'Gagal memperbarui author di database', details: error.message })
+  }
+})
+
+// DELETE: Hapus data author berdasarkan ID
+app.delete('/api/authors/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const [existing] = await pool.query('SELECT * FROM authors WHERE id = ?', [id])
+    if (existing.length === 0) {
+      return res.status(404).json({ error: 'Data author tidak ditemukan!' })
+    }
+
+    // Pengecekan relasi dengan tabel books
+    try {
+      const [[{ bookCount }]] = await pool.query(
+        'SELECT COUNT(*) AS bookCount FROM books WHERE author_id = ?',
+        [id]
+      )
+      if (bookCount > 0) {
+        return res.status(400).json({
+          error: `Tidak dapat menghapus author "${existing[0].name}" karena masih terkait dengan ${bookCount} buku.`
+        })
+      }
+    } catch {
+      // Abaikan jika tabel books atau kolom belum tersedia
+    }
+
+    await pool.query('DELETE FROM authors WHERE id = ?', [id])
+
+    res.json({
+      message: `Data author "${existing[0].name}" berhasil dihapus!`,
+      id: Number(id)
+    })
+  } catch (error) {
+    console.error('Error DELETE /api/authors/:id:', error)
+    if (error.errno === 1451 || error.code === 'ER_ROW_IS_REFERENCED_2') {
+      return res.status(400).json({
+        error: 'Tidak dapat menghapus author ini karena masih digunakan oleh data buku terkait.'
+      })
+    }
+    res.status(500).json({ error: 'Gagal menghapus author dari database', details: error.message })
   }
 })
 

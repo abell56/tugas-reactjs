@@ -31,11 +31,15 @@ Aplikasi web toko buku modern berbasis **React** dan **Bootstrap 5**. Aplikasi i
 6. **Halaman Admin Panel (Manajemen Data Genre & Author)**:
    - **Statistik Ringkasan**: Kartu ringkasan total genre aktif, total penulis terdaftar, dan estimasi buku terkait.
    - **Kelola Genre**:
-     - *Read Data*: Tabel master genre dilengkapi ikon visual, nama, slug, deskripsi, pratinjau badge warna-warni, jumlah koleksi, status aktif, dan fitur pencarian kata kunci secara real-time.
-     - *Create Data*: Formulir penambahan genre baru interaktif dengan pilihan ikon Font Awesome, tema badge (primary, success, dsb.), live preview badge, validasi duplikasi, dan notifikasi sukses.
+     - *Read Data*: Tabel master genre dilengkapi ikon visual, nama, deskripsi, relasi jumlah buku terkait, dan fitur pencarian real-time.
+     - *Create Data*: Formulir penambahan genre baru interaktif dengan validasi nama wajib diisi dan notifikasi status.
+     - *Update Data*: Edit data genre (nama dan deskripsi) langsung melalui modal dialog responsif dengan validasi data.
+     - *Delete Data*: Penghapusan data genre dengan modal konfirmasi keamanan dan peringatan proteksi relasi buku.
    - **Kelola Author**:
-     - *Read Data*: Direktori penulis dengan foto profil/avatar, email, negara asal, badge spesialisasi genre, bio singkat, total karya buku, status terverifikasi, pencarian nama/email/bio, serta filter spesialisasi.
-     - *Create Data*: Formulir penambahan penulis baru dengan relasi dropdown genre dinamis, validasi email, avatar/foto profil, dan notifikasi konfirmasi.
+     - *Read Data*: Direktori penulis dengan foto profil/avatar, nama, biografi, jumlah karya buku, dan pencarian real-time.
+     - *Create Data*: Formulir penambahan penulis baru dengan upload/link foto avatar, validasi nama, dan notifikasi konfirmasi.
+     - *Update Data*: Edit data penulis (nama, foto/avatar dengan pratinjau langsung, dan biografi) melalui modal dialog.
+     - *Delete Data*: Penghapusan data penulis dengan modal konfirmasi keamanan dan peringatan proteksi relasi buku.
 
 7. **Footer**:
    - Navigasi cepat, informasi hak cipta, dan tautan kebijakan privasi.
