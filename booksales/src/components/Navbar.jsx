@@ -110,19 +110,19 @@ function Navbar() {
             <button
               type="button"
               className="btn btn-outline-primary btn-sm px-3 rounded-pill fw-semibold auth-btn"
-              onClick={() => alert('Fitur Login akan segera hadir!')}
+              onClick={() => alert('Fitur Login akan segera hadir! Silakan gunakan menu Registrasi terlebih dahulu.')}
             >
               <i className="fa-solid fa-right-to-bracket me-1"></i>
               Login
             </button>
-            <button
-              type="button"
-              className="btn btn-primary btn-sm px-3 rounded-pill fw-semibold auth-btn shadow-sm"
-              onClick={() => alert('Fitur Register akan segera hadir!')}
+            <Link
+              to="/register"
+              onClick={closeNavbar}
+              className="btn btn-primary btn-sm px-3 rounded-pill fw-semibold auth-btn shadow-sm text-decoration-none"
             >
               <i className="fa-solid fa-user-plus me-1"></i>
               Register
-            </button>
+            </Link>
           </div>
         </div>
       </div>

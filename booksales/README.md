@@ -41,7 +41,22 @@ Aplikasi web toko buku modern berbasis **React** dan **Bootstrap 5**. Aplikasi i
      - *Update Data*: Edit data penulis (nama, foto/avatar dengan pratinjau langsung, dan biografi) melalui modal dialog.
      - *Delete Data*: Penghapusan data penulis dengan modal konfirmasi keamanan dan peringatan proteksi relasi buku.
 
-7. **Footer**:
+7. **Halaman Registrasi Pengguna (Register)**:
+   - **Formulir Pendaftaran**: Field lengkap mencakup *Nama Lengkap*, *Alamat Email*, *Username*, *Kata Sandi (Password)*, *Konfirmasi Kata Sandi*, serta persetujuan *Syarat & Ketentuan*.
+   - **Validasi Komprehensif**:
+     - Tidak boleh kosong (*required fields*).
+     - Format email valid (validasi pola regex standar).
+     - Validasi username (minimal 4 karakter, alfanumerik tanpa spasi).
+     - Validasi password (minimal 6 karakter) dilengkapi indikator kekuatan kata sandi (*Password Strength Meter*).
+     - Validasi kesesuaian konfirmasi kata sandi (*password match*).
+     - Validasi *real-time inline feedback* (saat berpindah fokus / *onBlur* dan saat mengetik ulang).
+   - **Desain UI/UX Menarik & Responsif**:
+     - Desain modern berbasis *split-column layout* pada layar besar dengan benefit member & social proof.
+     - Reusable component `FormInput` dengan icon prefix dan tombol *toggle visibility* (show/hide) password.
+     - Tampilan notifikasi kartu sukses saat pendaftaran berhasil disertai rincian akun.
+     - Persistensi data lokal ke `localStorage` (`bookstore_users`).
+
+8. **Footer**:
    - Navigasi cepat, informasi hak cipta, dan tautan kebijakan privasi.
 
 ---

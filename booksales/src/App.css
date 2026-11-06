@@ -180,3 +180,70 @@
   width: 100%;
   object-fit: cover;
 }
+
+/* ==========================================================================
+   Registration Page & Form Styling
+   ========================================================================== */
+.register-page-wrapper {
+  min-height: calc(100vh - 160px);
+  background-color: #f8fafc;
+}
+
+.custom-input-group .input-group-text {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+  font-size: 0.95rem;
+  padding: 0.65rem 0.9rem;
+  border-top-left-radius: 0.5rem;
+  border-bottom-left-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.custom-input-group .form-control {
+  border-color: #e2e8f0;
+  padding: 0.65rem 0.95rem;
+  font-size: 0.95rem;
+  color: #1e293b;
+  transition: all 0.2s ease;
+}
+
+.custom-input-group .form-control:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.custom-input-group .btn-light {
+  background-color: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+  border-top-right-radius: 0.5rem;
+  border-bottom-right-radius: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.custom-input-group .btn-light:hover {
+  background-color: #f1f5f9;
+  color: #1e293b;
+}
+
+/* Feedback Animations */
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeInSlide 0.25s ease-out forwards;
+}
+
+/* Card Rounded Corners */
+.rounded-4 {
+  border-radius: 1rem !important;
+}

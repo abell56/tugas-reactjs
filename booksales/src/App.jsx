@@ -5,6 +5,7 @@ import Book from './pages/Book'
 import Team from './pages/Team'
 import Contact from './pages/Contact'
 import Admin from './pages/Admin'
+import Register from './pages/Register'
 import NotFound from './pages/NotFound'
 
 /**
@@ -35,6 +36,7 @@ function App() {
           <Route path="admin" element={<Admin />} />
           <Route path="admin/genre" element={<Admin defaultTab="genre" />} />
           <Route path="admin/author" element={<Admin defaultTab="author" />} />
+          <Route path="register" element={<Register />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

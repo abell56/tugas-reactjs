@@ -145,6 +145,31 @@ function Home() {
           </div>
         </div>
       </div>
+
+      {/* Call to Action: Registrasi Member Baru */}
+      <section className="py-5 bg-white border-top">
+        <div className="container">
+          <div className="row align-items-center justify-content-between p-4 p-lg-5 rounded-4 bg-primary bg-gradient text-white shadow">
+            <div className="col-lg-8 mb-4 mb-lg-0">
+              <span className="badge bg-white text-primary px-3 py-1 rounded-pill mb-2 fw-semibold">
+                <i className="fa-solid fa-gift me-1"></i> Promo Khusus Pengguna Baru
+              </span>
+              <h2 className="fw-bold mb-2">Belum Memiliki Akun Bookstore?</h2>
+              <p className="lead fs-6 opacity-75 mb-0">
+                Daftar sekarang dalam hitungan menit untuk menikmati diskon eksklusif 30%, simpan buku impian ke wishlist, dan dapatkan notifikasi buku terbaru.
+              </p>
+            </div>
+            <div className="col-lg-4 text-lg-end">
+              <Link
+                to="/register"
+                className="btn btn-light btn-lg px-4 py-3 rounded-pill fw-bold text-primary shadow-sm"
+              >
+                <i className="fa-solid fa-user-plus me-2"></i>Daftar Akun Sekarang
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
     </>
   )
 }
